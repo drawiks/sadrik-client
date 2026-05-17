@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- *  © 2026 Copyright Sadrik Client 2.0
+ *  © 2026 Copyright Sadrik Client
  *        All Rights Reserved ®
  */
 

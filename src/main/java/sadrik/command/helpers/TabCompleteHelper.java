@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- *  © 2026 Copyright Sadrik Client 2.0
+ *  © 2026 Copyright Sadrik Client
  *        All Rights Reserved ®
  */
 

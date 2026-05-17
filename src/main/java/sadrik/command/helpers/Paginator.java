@@ -12,7 +12,7 @@ import java.util.function.Function;
 import static sadrik.command.impl.HelpCommand.getLine;
 
 /**
- *  © 2026 Copyright Sadrik Client 2.0
+ *  © 2026 Copyright Sadrik Client
  *        All Rights Reserved ®
  */
 

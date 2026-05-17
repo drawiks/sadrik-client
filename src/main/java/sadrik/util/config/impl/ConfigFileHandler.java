@@ -8,7 +8,7 @@ import java.nio.file.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- *  © 2026 Copyright Sadrik Client 2.0
+ *  © 2026 Copyright Sadrik Client
  *        All Rights Reserved ®
  */
 

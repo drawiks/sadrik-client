@@ -7,7 +7,7 @@ import com.sun.jna.platform.win32.WinNT.HRESULT;
 import com.sun.jna.win32.*;
 
 /**
- *  © 2025 Copyright Sadrik Client 2.0
+ *  © 2025 Copyright Sadrik Client
  *        All Rights Reserved ®
  */
 

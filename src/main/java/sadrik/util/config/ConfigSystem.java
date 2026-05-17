@@ -10,7 +10,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- *  © 2026 Copyright Sadrik Client 2.0
+ *  © 2026 Copyright Sadrik Client
  *        All Rights Reserved ®
  */
 

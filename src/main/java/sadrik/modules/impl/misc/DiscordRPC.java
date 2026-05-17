@@ -38,7 +38,7 @@ public class DiscordRPC extends ModuleStructure {
         } else {
             inGame = false;
             startTimestamp = 0L;
-            updatePresence("In Main Menu", "Sadrik Client 2.0");
+            updatePresence("In Main Menu", "Sadrik Client");
         }
     }
 
@@ -60,7 +60,7 @@ public class DiscordRPC extends ModuleStructure {
     public void onGameLeft(GameLeftEvent e) {
         inGame = false;
         startTimestamp = 0L;
-        updatePresence("In Main Menu", "Sadrik Client 2.0");
+        updatePresence("In Main Menu", "Sadrik Client");
     }
 
     @EventHandler
@@ -74,7 +74,7 @@ public class DiscordRPC extends ModuleStructure {
             } else {
                 inGame = false;
                 startTimestamp = 0L;
-                updatePresence("In Main Menu", "Sadrik Client 2.0");
+                updatePresence("In Main Menu", "Sadrik Client");
             }
             return;
         }
@@ -104,7 +104,7 @@ public class DiscordRPC extends ModuleStructure {
                 .state(state)
                 .startTimestamp(startTimestamp > 0 ? startTimestamp : 0)
                 .largeImageKey("sadrik")
-                .largeImageText("Sadrik Client 2.0")
+                .largeImageText("Sadrik Client")
                 .activityType(ActivityType.PLAYING);
         if (!details.isEmpty()) {
             builder.details(details);

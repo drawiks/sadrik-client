@@ -8,7 +8,7 @@ import sadrik.events.api.EventHandler;
 import sadrik.events.impl.PacketEvent;
 
 /**
- *  © 2025 Copyright Sadrik Client 2.0
+ *  © 2025 Copyright Sadrik Client
  *        All Rights Reserved ®
  */
 

@@ -4,7 +4,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- *  © 2026 Copyright Sadrik Client 2.0
+ *  © 2026 Copyright Sadrik Client
  *        All Rights Reserved ®
  */
 

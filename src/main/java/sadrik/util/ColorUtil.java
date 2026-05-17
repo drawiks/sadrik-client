@@ -17,7 +17,7 @@ import java.util.concurrent.*;
 import java.util.regex.Pattern;
 
 /**
- *  © 2025 Copyright Sadrik Client 2.0
+ *  © 2025 Copyright Sadrik Client
  *        All Rights Reserved ®
  */
 

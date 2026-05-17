@@ -25,7 +25,7 @@ import sadrik.util.repository.way.WayRepository;
 import sadrik.util.tps.TPSCalculate;
 
 /**
- *  © 2026 Copyright Sadrik Client 2.0
+ *  © 2026 Copyright Sadrik Client
  *        All Rights Reserved ®
  */
 

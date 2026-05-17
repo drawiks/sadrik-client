@@ -8,7 +8,7 @@ import sadrik.util.render.draw.DrawEngine;
 import sadrik.util.render.draw.DrawEngineImpl;
 
 /**
- *  © 2026 Copyright Sadrik Client 2.0
+ *  © 2026 Copyright Sadrik Client
  *        All Rights Reserved ®
  */
 
