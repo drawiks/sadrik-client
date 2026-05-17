@@ -1,0 +1,62 @@
+{
+  "kolokolnia_kill": {
+    "sounds": [
+      "sadrik:kolokolnia_kill"
+    ]
+  },
+  "moan1": {
+    "sounds": [
+      "sadrik:moan1"
+    ]
+  },
+  "moan2": {
+    "sounds": [
+      "sadrik:moan2"
+    ]
+  },
+  "moan3": {
+    "sounds": [
+      "sadrik:moan3"
+    ]
+  },
+  "moan4": {
+    "sounds": [
+      "sadrik:moan4"
+    ]
+  },
+  "module_disable": {
+    "sounds": [
+      "sadrik:module_disable"
+    ]
+  },
+  "module_enable": {
+    "sounds": [
+      "sadrik:module_enable"
+    ]
+  },
+  "off": {
+    "sounds": [
+      "sadrik:off"
+    ]
+  },
+  "on": {
+    "sounds": [
+      "sadrik:on"
+    ]
+  },
+  "crime": {
+    "sounds": [
+      "sadrik:crime"
+    ]
+  },
+  "metallic": {
+    "sounds": [
+      "sadrik:metallic"
+    ]
+  },
+  "welcome": {
+  "sounds": [
+    "sadrik:welcome"
+  ]
+}
+}

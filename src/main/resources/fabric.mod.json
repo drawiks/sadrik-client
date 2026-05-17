@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "sadrik",
+  "version": "${version}",
+  "name": "sadrik client",
+  "description": "Custom Minecraft client with shader-based rendering",
+  "authors": ["You"],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/sadrik/textures/capes/cape.png",
+  "environment": "client",
+  "entrypoints": {
+    "preLaunch": [
+      "sadrik.util.mods.config.wave.WaveCapesConfigOverride"
+    ],
+    "client": [
+      "sadrik.Initialization"
+    ]
+  },
+  "mixins": [
+    "mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.18.4",
+    "fabric-api": "*",
+    "minecraft": "~1.21.11",
+    "java": ">=21"
+  }
+}
