@@ -24,6 +24,7 @@ public class AutoTpAccept extends ModuleStructure {
             "просит к вам телепортироваться"
     };
     private boolean canAccept;
+    private String senderName;
 
     private final BooleanSetting friendSetting = new BooleanSetting("Только друзья", "Будет принимать запросы только от друзей").setValue(true);
 
@@ -35,11 +36,16 @@ public class AutoTpAccept extends ModuleStructure {
     @EventHandler
     @Native(type = Native.Type.VMProtectBeginMutation)
     public void onPacket(PacketEvent e) {
+        if (e.getType() != PacketEvent.Type.RECEIVE) return;
         if (e.getPacket() instanceof GameMessageS2CPacket m) {
             String message = m.content().getString();
-            boolean validPlayer = !friendSetting.isValue() || FriendUtils.getFriends().stream().anyMatch(s -> message.contains(s.getName()));
-            if (isTeleportMessage(message)) {
-                canAccept = validPlayer;
+            if (!isTeleportMessage(message)) return;
+            String nick = extractSenderName(message);
+            if (nick == null) return;
+            boolean valid = !friendSetting.isValue() || FriendUtils.isFriend(nick);
+            if (valid) {
+                canAccept = true;
+                senderName = nick;
             }
         }
     }
@@ -48,13 +54,32 @@ public class AutoTpAccept extends ModuleStructure {
     @Native(type = Native.Type.VMProtectBeginMutation)
     public void onTick(TickEvent e) {
         if (!Network.isPvp() && canAccept) {
-            mc.player.networkHandler.sendChatCommand("tpaccept");
+            mc.player.networkHandler.sendChatCommand(friendSetting.isValue() ? "tpaccept " + senderName : "tpaccept");
             canAccept = false;
+            senderName = null;
         }
     }
 
     @Native(type = Native.Type.VMProtectBeginMutation)
     private boolean isTeleportMessage(String message) {
-        return Arrays.stream(this.teleportMessages).map(String::toLowerCase).anyMatch(message::contains);
+        String lower = message.toLowerCase();
+        return Arrays.stream(teleportMessages).anyMatch(lower::contains);
+    }
+
+    @Native(type = Native.Type.VMProtectBeginMutation)
+    private String extractSenderName(String message) {
+        String lower = message.toLowerCase();
+        for (String trigger : teleportMessages) {
+            int idx = lower.indexOf(trigger);
+            if (idx == -1) continue;
+            String before = message.substring(0, idx).trim();
+            String[] parts = before.split("\\s+");
+            if (parts.length == 0) continue;
+            String candidate = parts[parts.length - 1].replaceAll("[^\\w]", "");
+            if (candidate.length() >= 3 && candidate.length() <= 16) {
+                return candidate;
+            }
+        }
+        return null;
     }
 }
