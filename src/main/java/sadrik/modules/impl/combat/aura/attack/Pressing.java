@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import net.minecraft.item.ItemStack;
 import sadrik.IMinecraft;
+import sadrik.modules.impl.combat.SyncTPS;
 
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Pressing implements IMinecraft {
@@ -15,15 +16,16 @@ public class Pressing implements IMinecraft {
             return false;
 
         if (isHoldingMace()) {
-            return lastClickPassed() >= 50;
+            return lastClickPassed() >= (long)(50 * SyncTPS.tickAdjustmentFactor);
         }
 
         float cooldownProgress = mc.player.getAttackCooldownProgress(ticks);
-        return cooldownProgress >= 0.95F;
+        float threshold = Math.min(1.0F, 0.95F * SyncTPS.tickAdjustmentFactor);
+        return cooldownProgress >= threshold;
     }
 
     public boolean isMaceFastAttack() {
-        return isHoldingMace() && lastClickPassed() >= 50;
+        return isHoldingMace() && lastClickPassed() >= (long)(50 * SyncTPS.tickAdjustmentFactor);
     }
 
     public long lastClickPassed() {

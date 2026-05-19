@@ -40,6 +40,7 @@ public class ModuleRepository {
                 .add(new GlassHands())
                 .add(new ChunkAnimator())
                 .add(new MaceTarget())
+                .add(new SyncTPS())
                 .add(new TriggerBot())
                 .add(new BowSpammer())
                 .add(new Ambience())
