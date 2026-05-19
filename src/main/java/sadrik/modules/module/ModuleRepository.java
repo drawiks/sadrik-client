@@ -110,6 +110,7 @@ public class ModuleRepository {
                 .add(new EventWayPoint())
                 .add(new AppleFarmer())
                 .add(new NoAnnouncer())
+                .add(new AutoSell())
                 .hidden(new AutoParser());
         discordRpc.setState(true);
     }

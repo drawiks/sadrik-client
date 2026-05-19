@@ -41,6 +41,7 @@ public class CommandManager {
         registerCommand(new WayCommand());
         registerCommand(new StaffCommand());
         registerCommand(new BlockESPCommand());
+        registerCommand(new AutoSellCommand());
 
         EventManager.register(this);
     }
