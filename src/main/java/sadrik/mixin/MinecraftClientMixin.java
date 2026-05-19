@@ -32,7 +32,7 @@ import sadrik.util.config.ConfigSystem;
 import sadrik.util.render.font.FontRenderer;
 import sadrik.util.session.SessionChanger;
 import sadrik.util.window.WindowStyle;
-import antidaunleak.api.UserProfile;
+import net.fabricmc.loader.api.FabricLoader;
 
 import static sadrik.IMinecraft.mc;
 
@@ -145,10 +145,10 @@ public abstract class MinecraftClientMixin {
 
     @Inject(method = "getWindowTitle", at = @At("RETURN"), cancellable = true)
     private void getWindowTitle(CallbackInfoReturnable<String> cir) {
-        UserProfile userProfile = UserProfile.getInstance();
-        String username = userProfile.profile("username");
-        String role = userProfile.profile("role");
-        cir.setReturnValue(String.format("Sadrik Modern (%s - %s)", role, username));
+        String version = FabricLoader.getInstance()
+                .getModContainer("sadrik").orElseThrow()
+                .getMetadata().getVersion().getFriendlyString();
+        cir.setReturnValue("sadrik client - " + version);
     }
 
     @Inject(method = "handleInputEvents", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getInventory()Lnet/minecraft/entity/player/PlayerInventory;"), cancellable = true)

@@ -6,7 +6,6 @@ import sadrik.util.render.Render2D;
 import sadrik.util.render.shader.Scissor;
 import sadrik.util.render.font.Fonts;
 import sadrik.util.render.gif.GifRender;
-import antidaunleak.api.UserProfile;
 
 import java.awt.*;
 
@@ -20,9 +19,7 @@ public class AvatarRenderer {
         int alphaFon = (int) (105 * alphaMultiplier);
         int alphaText = (int) (200 * alphaMultiplier);
 
-        UserProfile userProfile = UserProfile.getInstance();
-        String username = userProfile.profile("username");
-        String uid = userProfile.profile("uid");
+        String username = mc.getSession().getUsername();
 
         Render2D.blur(bgX + 15f, bgY + 15f, 1, 1, 0f, 0, alphaText);
         context.getMatrices().pushMatrix();
@@ -42,11 +39,7 @@ public class AvatarRenderer {
 
         Scissor.enable(textX, textY - 2, maxTextWidth, textHeight, FORCED_GUI_SCALE);
         Fonts.BOLD.draw(username, textX, textY, 6, new Color(255, 255, 255, alphaText).getRGB());
-        Fonts.BOLD.draw("Uid: " + uid, textX, textY + 7, 5, new Color(255, 255, 255, alphaText).getRGB());
-        Render2D.blur(textX, textY + 7, 1, 1, 0f, 0, alphaText);
         Scissor.disable();
-
-        Render2D.blur(textX, textY + 7, 1, 1, 0f, 0, alphaText);
     }
 
     private int applyAlpha(int color, int alpha) {
