@@ -4,6 +4,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import sadrik.command.impl.*;
+import sadrik.command.impl.FakePlayerCommand;
 import sadrik.events.api.EventManager;
 import sadrik.events.api.EventHandler;
 import sadrik.events.impl.ChatEvent;
@@ -42,6 +43,8 @@ public class CommandManager {
         registerCommand(new StaffCommand());
         registerCommand(new BlockESPCommand());
         registerCommand(new AutoSellCommand());
+        registerCommand(new NeuroCommand());
+        registerCommand(new FakePlayerCommand());
 
         EventManager.register(this);
     }

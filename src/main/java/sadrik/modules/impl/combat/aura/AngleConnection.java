@@ -179,20 +179,20 @@ public class AngleConnection implements IMinecraft {
     }
 
     public void startReturning() {
-//        clear();
-//        lastRotationPlan = null;
-//        rotationPlanTaskProcessor.tickCounter = 0;
-//        returning = true;
+        clear();
+        lastRotationPlan = null;
+        rotationPlanTaskProcessor.tickCounter = 0;
+        returning = true;
     }
 
     public void reset() {
-//        clear();
+        clear();
         currentAngle = null;
         previousAngle = null;
         fakeAngle = null;
         lastRotationPlan = null;
         rotationPlanTaskProcessor.tickCounter = 0;
-//        returning = false;
+        returning = false;
     }
 
     @EventHandler

@@ -15,6 +15,7 @@ import sadrik.util.config.impl.friend.FriendConfig;
 import sadrik.util.config.impl.prefix.PrefixConfig;
 import sadrik.util.config.impl.proxy.ProxyConfig;
 import sadrik.util.config.impl.staff.StaffConfig;
+import sadrik.util.entity.fakeplayer.FakePlayerManager;
 import sadrik.util.modules.ModuleProvider;
 import sadrik.util.modules.ModuleSwitcher;
 import sadrik.util.render.shader.RenderCore;
@@ -73,5 +74,7 @@ public class Manager {
         configSystem.init();
         commandManager = new CommandManager();
         commandManager.init();
+
+        FakePlayerManager.getInstance().init();
     }
 }

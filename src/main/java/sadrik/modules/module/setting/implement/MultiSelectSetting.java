@@ -19,8 +19,23 @@ public class MultiSelectSetting extends Setting {
     }
 
     public MultiSelectSetting value(String... settings) {
-        list = Arrays.asList(settings);
+        list = new ArrayList<>(Arrays.asList(settings));
         return this;
+    }
+
+    public void addValue(String value) {
+        if (list == null) list = new ArrayList<>();
+        if (!list.contains(value)) {
+            list.add(value);
+        }
+        if (!selected.contains(value)) {
+            selected.add(value);
+        }
+    }
+
+    public void removeValue(String value) {
+        if (list != null) list.remove(value);
+        selected.remove(value);
     }
 
     public MultiSelectSetting selected(String... settings) {

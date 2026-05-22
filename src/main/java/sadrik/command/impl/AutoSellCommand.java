@@ -24,36 +24,58 @@ public class AutoSellCommand extends Command {
             return;
         }
 
-        if (args.length < 3) {
+        if (args.length == 0) {
             showHelp();
             return;
         }
 
-        StringBuilder itemName = new StringBuilder();
-        for (int i = 0; i < args.length - 2; i++) {
-            if (itemName.length() > 0) itemName.append(" ");
-            itemName.append(args[i]);
-        }
-
-        int quantity;
-        int price;
-
-        try {
-            quantity = Integer.parseInt(args[args.length - 2]);
-            price = Integer.parseInt(args[args.length - 1]);
-        } catch (NumberFormatException e) {
-            logDirect("§cКоличество и цена должны быть числами");
+        if (args[0].equalsIgnoreCase("add")) {
+            autoSell.addHandItem();
             return;
         }
 
-        autoSell.startSell(itemName.toString(), quantity, price);
+        if (args[0].equalsIgnoreCase("remove") && args.length >= 2) {
+            StringBuilder itemName = new StringBuilder();
+            for (int i = 1; i < args.length; i++) {
+                if (itemName.length() > 0) itemName.append(" ");
+                itemName.append(args[i]);
+            }
+            autoSell.removeItem(itemName.toString());
+            return;
+        }
+
+        if (args[0].equalsIgnoreCase("start") && args.length >= 4) {
+            StringBuilder itemName = new StringBuilder();
+            for (int i = 1; i < args.length - 2; i++) {
+                if (itemName.length() > 0) itemName.append(" ");
+                itemName.append(args[i]);
+            }
+
+            int quantity;
+            int price;
+
+            try {
+                quantity = Integer.parseInt(args[args.length - 2]);
+                price = Integer.parseInt(args[args.length - 1]);
+            } catch (NumberFormatException e) {
+                logDirect("§cКоличество и цена должны быть числами");
+                return;
+            }
+
+            autoSell.startSell(itemName.toString(), quantity, price);
+            return;
+        }
+
+        showHelp();
     }
 
     private void showHelp() {
         logDirectRaw(net.minecraft.text.Text.literal(getLine()));
         logDirect("§f§lAUTOSELL");
         logDirectRaw(net.minecraft.text.Text.literal(getLine()));
-        logDirect("§7> autosell <предмет> <количество> <цена> §8- §fПродать предмет на аукционе");
+        logDirect("§7> autosell add §8- §fДобавить предмет с руки в список");
+        logDirect("§7> autosell remove <предмет> §8- §fУдалить предмет из списка");
+        logDirect("§7> autosell start <предмет> <количество> <цена> §8- §fПродать предмет");
         logDirectRaw(net.minecraft.text.Text.literal(getLine()));
     }
 
@@ -64,22 +86,31 @@ public class AutoSellCommand extends Command {
 
         if (args.length == 1) {
             return new TabCompleteHelper()
-                    .append(autoSell.getModeNames())
+                    .append("add", "remove", "start")
                     .sortAlphabetically()
                     .filterPrefix(args[0])
                     .stream();
         }
 
-        if (args.length == 2) {
+        if (args.length == 2 && args[0].equalsIgnoreCase("remove")) {
             return new TabCompleteHelper()
-                    .append("1", "16", "32", "64")
+                    .append(autoSell.getModeNames())
+                    .sortAlphabetically()
                     .filterPrefix(args[1])
                     .stream();
         }
 
-        if (args.length == 3) {
+        if (args.length == 2 && args[0].equalsIgnoreCase("start")) {
             return new TabCompleteHelper()
-                    .append("100", "500", "1000", "5000", "10000", "50000", "100000", "200000")
+                    .append(autoSell.getModeNames())
+                    .sortAlphabetically()
+                    .filterPrefix(args[1])
+                    .stream();
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("start")) {
+            return new TabCompleteHelper()
+                    .append("1", "8", "16", "32", "64")
                     .filterPrefix(args[2])
                     .stream();
         }
@@ -98,10 +129,14 @@ public class AutoSellCommand extends Command {
                 "Команда для продажи предметов на аукционе",
                 "",
                 "Использование:",
-                "> autosell <предмет> <количество> <цена>",
+                "> autosell add",
+                "> autosell remove <предмет>",
+                "> autosell start <предмет> <количество> <цена>",
                 "",
                 "Примеры:",
-                "> autosell Чарки 1 200000",
+                "> autosell add",
+                "> autosell remove Чарки",
+                "> autosell start Чарки 1 200000",
                 "",
                 "Предмет выбирается из списка в настройках модуля",
                 "Перед использованием включите нужные режимы в модуле AutoSell"

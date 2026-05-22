@@ -20,7 +20,12 @@ import sadrik.modules.module.setting.implement.MultiSelectSetting;
 import sadrik.modules.module.setting.implement.SliderSettings;
 import sadrik.util.timer.TimerUtil;
 
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.LoreComponent;
+import sadrik.util.config.impl.autosell.AutoSellConfig;
+
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static sadrik.IMinecraft.mc;
@@ -29,22 +34,15 @@ public class AutoSell extends ModuleStructure {
 
     private static AutoSell instance;
 
-    public final MultiSelectSetting modes = new MultiSelectSetting("Режимы", "Какие предметы продавать")
-            .value("Чарки", "Булыжник", "Камень", "Редстоуновая пыль");
+    public final MultiSelectSetting modes = new MultiSelectSetting("Режимы", "Какие предметы продавать");
     public final SliderSettings delayMin = new SliderSettings("Мин. задержка", "ms")
             .range(50, 2000).setValue(200);
     public final SliderSettings delayMax = new SliderSettings("Макс. задержка", "ms")
             .range(50, 2000).setValue(1000);
     public final BooleanSetting messages = new BooleanSetting("Сообщения", "Уведомления в чате").setValue(true);
 
-    private static final Map<String, String> ITEM_MAP = new HashMap<>();
-
-    static {
-        ITEM_MAP.put("Чарки", "minecraft:enchanted_golden_apple");
-        ITEM_MAP.put("Булыжник", "minecraft:cobblestone");
-        ITEM_MAP.put("Камень", "minecraft:stone");
-        ITEM_MAP.put("Редстоуновая пыль", "minecraft:redstone");
-    }
+    private final Map<String, String> itemMap = new HashMap<>();
+    private final AutoSellConfig config;
 
     private final TimerUtil timer = TimerUtil.create();
     private final TimerUtil idleTimer = TimerUtil.create();
@@ -61,12 +59,13 @@ public class AutoSell extends ModuleStructure {
     private int currentPrice;
     private int currentHotbarSlot;
     private int retryCount;
-    private String lastSoldKey = "";
 
     public AutoSell() {
         super("AutoSell", "Автоматическая продажа предметов на аукционе", ModuleCategory.MISC);
         settings(modes, delayMin, delayMax, messages);
         instance = this;
+        this.config = AutoSellConfig.getInstance();
+        loadItemsFromConfig();
     }
 
     public static AutoSell getInstance() {
@@ -74,7 +73,7 @@ public class AutoSell extends ModuleStructure {
     }
 
     public void startSell(String itemName, int quantity, int price) {
-        String itemId = ITEM_MAP.get(itemName);
+        String itemId = itemMap.get(itemName);
         if (itemId == null) {
             message("§cПредмет \"" + itemName + "\" не найден в списке доступных");
             return;
@@ -109,7 +108,7 @@ public class AutoSell extends ModuleStructure {
     public void activate() {
         super.activate();
         if (phase == Phase.IDLE) {
-            message("§eИспользуйте .autosell <предмет> <количество> <цена>");
+            message("§eИспользуйте .autosell start <предмет> <количество> <цена>");
         }
     }
 
@@ -117,7 +116,21 @@ public class AutoSell extends ModuleStructure {
     public void deactivate() {
         super.deactivate();
         phase = Phase.IDLE;
-        lastSoldKey = "";
+    }
+
+    private void loadItemsFromConfig() {
+        Map<String, String> items = config.getItems();
+        if (items.isEmpty()) {
+            items.put("Чарки", "minecraft:enchanted_golden_apple|");
+            items.put("Булыжник", "minecraft:cobblestone|");
+            items.put("Камень", "minecraft:stone|");
+            items.put("Редстоуновая пыль", "minecraft:redstone|");
+            config.save();
+        }
+        for (Map.Entry<String, String> e : items.entrySet()) {
+            itemMap.put(e.getKey(), e.getValue());
+            modes.addValue(e.getKey());
+        }
     }
 
     @EventHandler
@@ -151,10 +164,95 @@ public class AutoSell extends ModuleStructure {
         return min + (long) (Math.random() * (max - min + 1));
     }
 
+    public void addHandItem() {
+        if (mc.player == null) return;
+        ItemStack stack = mc.player.getMainHandStack();
+        if (stack.isEmpty()) {
+            message("§cВозьмите предмет в руку");
+            return;
+        }
+
+        String regId = Registries.ITEM.getId(stack.getItem()).toString();
+
+        Text customNameText = stack.get(DataComponentTypes.CUSTOM_NAME);
+        String customName = customNameText != null ? customNameText.getString() : "";
+        String displayName = stack.getName().getString();
+
+        LoreComponent loreComp = stack.get(DataComponentTypes.LORE);
+        String lore = "";
+        if (loreComp != null && !loreComp.lines().isEmpty()) {
+            lore = loreComp.lines().stream()
+                    .map(t -> t.getString())
+                    .collect(java.util.stream.Collectors.joining(";;"));
+        }
+
+        String itemKey = regId + "|" + customName;
+        if (!lore.isEmpty()) itemKey += "||" + lore;
+
+        if (itemMap.containsKey(displayName)) {
+            message("§eПредмет §f" + displayName + " §eуже в списке");
+            return;
+        }
+
+        itemMap.put(displayName, itemKey);
+        modes.addValue(displayName);
+        config.putItem(displayName, itemKey);
+        config.save();
+        message("§aПредмет §f" + displayName + " §aдобавлен в список");
+    }
+
+    public void removeItem(String name) {
+        if (!itemMap.containsKey(name)) {
+            message("§cПредмет \"" + name + "\" не найден в списке");
+            return;
+        }
+        itemMap.remove(name);
+        modes.removeValue(name);
+        config.removeItem(name);
+        config.save();
+        message("§aПредмет §f" + name + " §aудалён из списка");
+    }
+
+    private String getRegistryId(String itemKey) {
+        int pipe = itemKey.indexOf('|');
+        return pipe == -1 ? itemKey : itemKey.substring(0, pipe);
+    }
+
+    private boolean matchesKey(ItemStack stack, String itemKey) {
+        String[] parts = itemKey.split("\\|\\|", 2);
+        String regAndName = parts[0];
+        String lorePart = parts.length > 1 ? parts[1] : "";
+        if (lorePart.equals("|")) lorePart = "";
+
+        String[] regParts = regAndName.split("\\|", 2);
+        String regId = regParts[0];
+        String expectedName = regParts.length > 1 ? regParts[1] : "";
+
+        if (!Registries.ITEM.getId(stack.getItem()).toString().equals(regId)) return false;
+
+        Text stackName = stack.get(DataComponentTypes.CUSTOM_NAME);
+        String actualName = stackName != null ? stackName.getString() : "";
+        if (!expectedName.equals(actualName)) return false;
+
+        if (!lorePart.isEmpty()) {
+            String[] expectedLines = lorePart.split(";;");
+            LoreComponent stackLore = stack.get(DataComponentTypes.LORE);
+            if (stackLore == null) return false;
+            List<Text> actualLines = stackLore.lines();
+            if (actualLines.size() != expectedLines.length) return false;
+            for (int i = 0; i < expectedLines.length; i++) {
+                if (!actualLines.get(i).getString().equals(expectedLines[i])) return false;
+            }
+        }
+
+        return true;
+    }
+
     private void findItem() {
         if (!timer.hasTimeElapsed(getRandomDelay())) return;
 
-        Item targetItem = Registries.ITEM.get(Identifier.of(currentItemId));
+        String regId = getRegistryId(currentItemId);
+        Item targetItem = Registries.ITEM.get(Identifier.of(regId));
         if (targetItem == null || targetItem == Items.AIR) {
             message("§cОшибка: предмет не найден в игре");
             phase = Phase.ERROR;
@@ -164,14 +262,13 @@ public class AutoSell extends ModuleStructure {
         int totalFound = 0;
         for (int i = 9; i < 36; i++) {
             ItemStack stack = mc.player.getInventory().getStack(i);
-            if (!stack.isEmpty() && stack.getItem() == targetItem) {
+            if (!stack.isEmpty() && matchesKey(stack, currentItemId)) {
                 totalFound += stack.getCount();
             }
         }
 
         ItemStack held = mc.player.getMainHandStack();
-        if (!held.isEmpty() && held.getItem() == targetItem) {
-            lastSoldKey = held.getItem().toString();
+        if (!held.isEmpty() && matchesKey(held, currentItemId)) {
             phase = Phase.SELL;
             timer.resetCounter();
             return;
@@ -203,11 +300,10 @@ public class AutoSell extends ModuleStructure {
     private void pickupItems() {
         if (!timer.hasTimeElapsed(getRandomDelay())) return;
 
-        Item targetItem = Registries.ITEM.get(Identifier.of(currentItemId));
         int remaining = currentQuantity;
 
         ItemStack hotbarStack = mc.player.getInventory().getStack(currentHotbarSlot);
-        if (!hotbarStack.isEmpty() && hotbarStack.getItem() == targetItem) {
+        if (!hotbarStack.isEmpty() && matchesKey(hotbarStack, currentItemId)) {
             remaining -= hotbarStack.getCount();
             if (remaining <= 0) {
                 phase = Phase.SELECT_SLOT;
@@ -219,7 +315,7 @@ public class AutoSell extends ModuleStructure {
         boolean moved = false;
         for (int i = 9; i < 36 && remaining > 0; i++) {
             ItemStack stack = mc.player.getInventory().getStack(i);
-            if (stack.isEmpty() || stack.getItem() != targetItem) continue;
+            if (stack.isEmpty() || !matchesKey(stack, currentItemId)) continue;
 
             int targetScreen = 36 + currentHotbarSlot;
             int syncId = mc.player.currentScreenHandler.syncId;
@@ -373,7 +469,6 @@ public class AutoSell extends ModuleStructure {
         }
 
         if (msg.contains("слишком часто")) {
-            lastSoldKey = "";
             timer.resetCounter();
             phase = Phase.FIND_ITEM;
             message("§eRate limit, повторяю...");
@@ -408,7 +503,7 @@ public class AutoSell extends ModuleStructure {
     }
 
     public Map<String, String> getItemMap() {
-        return ITEM_MAP;
+        return itemMap;
     }
 
     private void message(String text) {

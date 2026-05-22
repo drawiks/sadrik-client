@@ -47,6 +47,9 @@ import sadrik.modules.module.setting.implement.SliderSettings;
 import sadrik.util.Instance;
 import sadrik.util.math.TaskPriority;
 
+import sadrik.modules.impl.combat.aura.neuro.NeuroAuraExec;
+import sadrik.modules.impl.combat.aura.neuro.NeuroAuraLearn;
+import sadrik.screens.hud.Notifications;
 import sadrik.util.string.PlayerInteractionHelper;
 
 import java.util.List;
@@ -59,7 +62,7 @@ public class Aura extends ModuleStructure {
     }
 
     private final SelectSetting mode = new SelectSetting("Режим наводки", "Select aim mode")
-            .value("Matrix", "FunTime Snap", "Snap", "SpookyTime", "FunTime HolderGD")
+            .value("Matrix", "FunTime Snap", "Snap", "SpookyTime", "FunTime HolderGD", "Neuro Aura")
             .selected("Matrix");
 
     private final SelectSetting moveFix = new SelectSetting("Коррекция движения", "Select move fix mode")
@@ -69,11 +72,13 @@ public class Aura extends ModuleStructure {
     @Getter
     public final SliderSettings attackrange = new SliderSettings("Дистанция удара", "Set range value")
             .range(2.0f, 6.0f)
-            .setValue(3.0f);
+            .setValue(3.0f)
+            .visible(() -> !neuroEnabled() || neuroExec());
 
     private final SliderSettings lookrange = new SliderSettings("Дистанция поиска", "Set look range value")
             .range(0.0f, 10.0f)
-            .setValue(1.5f);
+            .setValue(1.5f)
+            .visible(() -> !neuroEnabled() || neuroExec());
 
     public final MultiSelectSetting options = new MultiSelectSetting("Настройки", "Select settings")
             .value("Бить сквозь стены", "Рандомизация крита", "Не бить если ешь")
@@ -98,7 +103,22 @@ public class Aura extends ModuleStructure {
             .setValue(true)
             .visible(() -> checkCrit.isValue());
 
+    private final SelectSetting neuroMode = new SelectSetting("Нейро режим", "Режим Neuro Aura")
+            .value("Запоминающий", "Выполняющий")
+            .selected("Запоминающий")
+            .visible(() -> mode.isSelected("Neuro Aura"));
 
+    private final BooleanSetting neuroShakeOnLoss = new BooleanSetting("Нейро шейк", "Шейк как FunTime V2 при потере цели/выключении")
+            .setValue(true)
+            .visible(() -> mode.isSelected("Neuro Aura") && neuroMode.isSelected("Выполняющий"));
+
+    private final SliderSettings neuroSmooth = new SliderSettings("Нейро плавность", "Плавность наводки/доводки/возврата в Neuro Aura")
+            .setValue(0.76f).range(0.20f, 0.95f)
+            .visible(() -> mode.isSelected("Neuro Aura") && neuroMode.isSelected("Выполняющий"));
+
+    private final SelectSetting correctionType = new SelectSetting("Коррекции движения", "Выбор коррекции движения игрока")
+            .value("Free", "Focused", "Focus V2", "Not visible", "Neuro")
+            .selected("Neuro");
 
     @Getter
     @NonFinal
@@ -124,10 +144,18 @@ public class Aura extends ModuleStructure {
     @NonFinal
     long smoothPointLastMs = 0L;
 
+    public static boolean shouldRotate;
+    public static boolean fakeRotate;
+
+    final NeuroAuraExec neuroExecEngine = new NeuroAuraExec();
+    final NeuroAuraLearn neuroLearnEngine = new NeuroAuraLearn();
+
     public Aura() {
         super("Aura", ModuleCategory.COMBAT);
         settings(
-                mode, attackrange, lookrange, options, targetType, moveFix,
+                mode, neuroMode, neuroShakeOnLoss, neuroSmooth,
+                attackrange, lookrange, options, targetType, moveFix,
+                correctionType,
                 resetSprintMode, checkCrit, smartCrits
         );
     }
@@ -138,20 +166,73 @@ public class Aura extends ModuleStructure {
     public Vec3d getCachedPoint() { return cachedPoint; }
 
     float effectiveAttackRange() {
-        return attackrange.getValue();
+        if (!neuroEnabled()) return attackrange.getValue();
+        return neuroExec() ? attackrange.getValue() : 3.0f;
     }
 
     float effectiveLookRange() {
-        return lookrange.getValue();
+        if (!neuroEnabled()) return lookrange.getValue();
+        return neuroExec() ? lookrange.getValue() : 1.5f;
     }
 
     boolean effectiveIgnoreWalls() {
-        return options.isSelected("Бить сквозь стены");
+        if (!neuroEnabled()) return options.isSelected("Бить сквозь стены");
+        return neuroExec() && options.isSelected("Бить сквозь стены");
+    }
+
+    public boolean neuroEnabled() {
+        return mode.isSelected("Neuro Aura");
+    }
+
+    public boolean neuroExec() {
+        return neuroEnabled() && neuroMode.isSelected("Выполняющий");
+    }
+
+    public boolean neuroShakeEnabled() {
+        return neuroExec() && neuroShakeOnLoss.isValue();
+    }
+
+    public boolean neuroModeIsLearning() {
+        return neuroEnabled() && neuroMode.isSelected("Запоминающий");
+    }
+
+    public float neuroSmoothValue() {
+        float v = neuroSmooth.getValue();
+        if (v < 0.20f) v = 0.20f;
+        if (v > 0.95f) v = 0.95f;
+        return v;
+    }
+
+    public SelectSetting getCorrectionType() {
+        return correctionType;
+    }
+
+    public SelectSetting getNeuroMode() {
+        return neuroMode;
+    }
+
+    public boolean isNeuroLoaded() {
+        return neuroLearnEngine.isLoaded();
+    }
+
+    public int getNeuroSampleCount() {
+        return neuroLearnEngine.getSampleCount();
+    }
+
+    public boolean isNeuroDirty() {
+        return neuroLearnEngine.isDirty();
     }
 
     @Override
     public void deactivate() {
-        AngleConnection.INSTANCE.startReturning();
+        try {
+            if (neuroShakeEnabled()) {
+                neuroExecEngine.onDeactivate(this);
+            } else {
+                AngleConnection.INSTANCE.startReturning();
+            }
+        } catch (Exception ignored) {
+        }
 
         Initialization.getInstance().getManager()
                 .getAttackPerpetrator()
@@ -180,43 +261,84 @@ public class Aura extends ModuleStructure {
         smoothPointTid = Integer.MIN_VALUE;
         smoothPointCur = null;
         smoothPointLastMs = 0L;
+        neuroExecEngine.onActivate(this);
+        neuroLearnEngine.onActivate(this);
+
+        if (neuroEnabled()) {
+            int samples = neuroLearnEngine.getSampleCount();
+            String modeName = neuroMode.getSelected();
+            String msg = String.format("Neuro Aura: %s | Samples: %,d", modeName, samples);
+            Notifications.getInstance().addNotification(msg, 3000);
+        }
     }
 
     @EventHandler
     private void tick(TickEvent event) {
         if (PlayerInteractionHelper.nullCheck()) return;
+
+        if (neuroEnabled()) {
+            neuroExecEngine.onTick(this);
+        }
+
         if (target == null) return;
+
+        if (neuroEnabled() && neuroMode.isSelected("Запоминающий")) {
+            neuroLearnEngine.learnStep(this, false);
+        }
     }
 
     @EventHandler
     public void onRotationUpdate(RotationUpdateEvent e) {
         switch (e.getType()) {
             case EventType.PRE -> {
-                LivingEntity previousTarget = target;
-                target = updateTarget();
-
-                if (previousTarget != null && target == null) {
-                    Initialization.getInstance().getManager()
-                            .getAttackPerpetrator()
-                            .getAttackHandler()
-                            .resetPendingState();
+                if (neuroExecEngine.handlePreRotation(this)) {
+                    cachedConfig = null;
+                    cachedHitbox = null;
+                    cachedPoint = null;
+                    target = null;
+                    lastTarget = null;
+                    return;
                 }
+
+                target = updateTarget();
 
                 cachedConfig = null;
                 cachedHitbox = null;
                 cachedPoint = null;
 
                 if (target == null) {
-                    AngleConnection.INSTANCE.startReturning();
+                    boolean handled = false;
+                    if (neuroShakeEnabled()) {
+                        handled = neuroExecEngine.handleNoTarget(this, lastTarget);
+                    } else {
+                        AngleConnection.INSTANCE.startReturning();
+                    }
+                    if (handled) {
+                        lastTarget = null;
+                        return;
+                    }
                     lastTarget = null;
                     return;
                 }
 
+                neuroExecEngine.onTargetSelected(this, target);
+
                 cachedConfig = getConfig();
-                rotateToTarget(cachedConfig);
-                lastTarget = target;
+
+                if (neuroEnabled() && neuroMode.isSelected("Запоминающий")) {
+                    neuroLearnEngine.learnStep(this, false);
+                    lastTarget = target;
+                } else {
+                    rotateToTarget(cachedConfig);
+                    lastTarget = target;
+                }
             }
             case EventType.POST -> {
+                if (neuroExecEngine.isBusy(this)) return;
+                if (neuroEnabled() && target != null && neuroMode.isSelected("Запоминающий")) {
+                    neuroLearnEngine.learnStep(this, true);
+                    return;
+                }
                 if (target != null) {
                     Initialization.getInstance().getManager()
                             .getAttackPerpetrator()
@@ -230,6 +352,8 @@ public class Aura extends ModuleStructure {
     public StrikerConstructor.AttackPerpetratorConfigurable getConfig() {
         float baseRange = effectiveAttackRange() + 0.253F;
 
+        Vec3d rv = neuroExecEngine.getMpRv(this);
+
         Angle baseRotForPoint = mc.player != null
                 ? new Angle(mc.player.getYaw(), mc.player.getPitch())
                 : AngleConnection.INSTANCE.getRotation();
@@ -238,7 +362,7 @@ public class Aura extends ModuleStructure {
                 target,
                 baseRange,
                 baseRotForPoint,
-                Vec3d.ZERO,
+                rv,
                 effectiveIgnoreWalls());
 
         Vec3d computedPoint = pointData.getLeft();
@@ -246,8 +370,12 @@ public class Aura extends ModuleStructure {
 
         long now = System.currentTimeMillis();
 
-        int tid = target != null ? target.getId() : -1;
-        computedPoint = smoothPointGeneric(tid, computedPoint, hitbox, now);
+        if (neuroExec()) {
+            computedPoint = neuroExecEngine.adjustPointForExec(this, target, hitbox, computedPoint);
+        } else {
+            int tid = target != null ? target.getId() : -1;
+            computedPoint = smoothPointGeneric(tid, computedPoint, hitbox, now);
+        }
 
         if (mc.player.isGliding() && target != null && target.isGliding()) {
             Vec3d targetVelocity = target.getVelocity();
@@ -314,7 +442,7 @@ public class Aura extends ModuleStructure {
         if (dtMs > 90L) dtMs = 90L;
         smoothPointLastMs = now;
 
-        float s = 0.70f;
+        float s = neuroEnabled() ? (neuroExec() ? neuroSmoothValue() : 0.70f) : 0.70f;
         float tau = MathHelper.lerp(s, 70.0f, 160.0f);
         float a = (float) dtMs / tau;
         a = MathHelper.clamp(a, 0.0f, 1.0f);
@@ -339,10 +467,41 @@ public class Aura extends ModuleStructure {
 
     @Native(type = Native.Type.VMProtectBeginMutation)
     public AngleConfig getRotationConfig() {
-        boolean visibleCorrection = true;
-        boolean freeCorrection = true;
+        boolean neuro = neuroEnabled();
 
-        if (TargetStrafe.getInstance().isState()
+        if (neuroExec() && correctionType.isSelected("Neuro") && target != null) {
+            int pred = neuroLearnEngine.getModel().predictCorrectionType(target, false);
+            if (pred >= 0) {
+                boolean visibleCorrection = pred != 3;
+                boolean freeCorrection = (pred == 0 || pred == 3);
+                return new AngleConfig(getSmoothMode(), visibleCorrection, freeCorrection);
+            }
+        }
+
+        boolean visibleCorrection = neuro || !correctionType.isSelected("Not visible");
+        boolean freeCorrection;
+
+        if (neuro) {
+            freeCorrection = true;
+            if (neuroExec() && correctionType.isSelected("Focus V2")) {
+                freeCorrection = false;
+            } else if (correctionType.isSelected("Focused")) {
+                freeCorrection = false;
+            } else if (correctionType.isSelected("Free")) {
+                freeCorrection = true;
+            } else if (correctionType.isSelected("Not visible")) {
+                freeCorrection = true;
+            } else if (correctionType.isSelected("Neuro")) {
+                freeCorrection = true;
+            }
+        } else {
+            freeCorrection = correctionType.isSelected("Free") || correctionType.isSelected("Neuro");
+            if (correctionType.isSelected("Focused") || correctionType.isSelected("Focus V2")) {
+                freeCorrection = false;
+            }
+        }
+
+        if (!neuro && TargetStrafe.getInstance().isState()
                 && TargetStrafe.getInstance().mode.isSelected("Grim") && target != null) {
             freeCorrection = false;
         }
@@ -352,42 +511,43 @@ public class Aura extends ModuleStructure {
 
     @Native(type = Native.Type.VMProtectBeginMutation)
     private void rotateToTarget(StrikerConstructor.AttackPerpetratorConfigurable config) {
-        StrikeManager attackHandler = Initialization.getInstance().getManager().getAttackPerpetrator()
-                .getAttackHandler();
         AngleConnection controller = AngleConnection.INSTANCE;
-        Angle.VecRotation rotation = new Angle.VecRotation(config.getAngle(), config.getAngle().toVector());
         AngleConfig rotationConfig = getRotationConfig();
 
         boolean elytraMode = mc.player.isGliding() && ElytraTarget.getInstance() != null
                 && ElytraTarget.getInstance().isState();
 
-        switch (mode.getSelected()) {
+        boolean neuro = neuroEnabled();
+        boolean exec = neuro && neuroMode.isSelected("Выполняющий");
 
-            case "FunTime Snap" -> {
-                if (attackHandler.canAttack(config, 5)) {
-                    controller.clear();
-                    controller.rotateTo(rotation, target, 60, rotationConfig,
-                            TaskPriority.HIGH_IMPORTANCE_1, this);
-                }
-            }
+        if (neuro && !exec) return;
 
-            case "Snap" -> {
-                if (attackHandler.canAttack(config, 0)) {
-                    controller.rotateTo(rotation, target, 0, rotationConfig,
-                            TaskPriority.HIGH_IMPORTANCE_1, this);
-                }
-            }
+        Angle effectiveAngle = config.getAngle();
 
-            case "Matrix", "SpookyTime", "FunTime HolderGD" -> {
-                controller.rotateTo(rotation, target, 1, rotationConfig,
-                        TaskPriority.HIGH_IMPORTANCE_1, this);
-            }
+        if (neuroExecEngine.tryApplyExecRotation(this, config,
+                Initialization.getInstance().getManager().getAttackPerpetrator().getAttackHandler(),
+                controller, rotationConfig))
+            return;
 
+        if (fakeRotate && target != null) {
+            Angle.VecRotation rotation0 = new Angle.VecRotation(effectiveAngle, effectiveAngle.toVector());
+            controller.setFakeRotation(rotation0.getAngle());
+        }
+        fakeRotate = false;
+
+        if (target != null) {
+            Angle.VecRotation rotation = new Angle.VecRotation(effectiveAngle, effectiveAngle.toVector());
+            controller.rotateTo(rotation, target, 1, rotationConfig, TaskPriority.HIGH_IMPORTANCE_1, this);
         }
 
-        if (elytraMode) {
-            controller.rotateTo(rotation, target, 1, rotationConfig,
-                    TaskPriority.HIGH_IMPORTANCE_1, this);
+        if (shouldRotate && target != null) {
+            Angle.VecRotation rotation = new Angle.VecRotation(effectiveAngle, effectiveAngle.toVector());
+            controller.rotateTo(rotation, target, 1, rotationConfig, TaskPriority.HIGH_IMPORTANCE_1, this);
+        }
+
+        if (elytraMode && target != null) {
+            Angle.VecRotation rotation = new Angle.VecRotation(effectiveAngle, effectiveAngle.toVector());
+            controller.rotateTo(rotation, target, 1, rotationConfig, TaskPriority.HIGH_IMPORTANCE_1, this);
         }
     }
 
@@ -491,6 +651,7 @@ public class Aura extends ModuleStructure {
     }
 
     public RotateConstructor getSmoothMode() {
+        if (neuroEnabled()) return new LinearConstructor();
         if (mc.player.isGliding() && ElytraTarget.getInstance() != null
                 && ElytraTarget.getInstance().isState()) {
             return new LinearConstructor();
